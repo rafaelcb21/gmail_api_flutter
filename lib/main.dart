@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:google_sign_in/google_sign_in.dart';
 import "package:http/http.dart" as http;
-import 'dart:convert' show json;
+import 'dart:convert';
 
 GoogleSignIn googleSignIn = new GoogleSignIn(
   scopes: <String>[
@@ -35,19 +35,36 @@ class LoginPage extends StatefulWidget {
 class LoginPageState extends State<LoginPage> {
 
 
-  Future<Null> testingEmail(userId, header) async {
+  Future<Null> testingEmail(String userId, Map header) async {
+    header['Accept'] = 'application/json';
+    header['Content-type'] = 'application/json';
+
+    var from = userId;
+    var to = userId;
+    var subject = 'test send email';
+    //var message = 'worked!!!';
+    var message = "Hi<br/>Html Email";
+    var content =
+      '''
+Content-Type: text/html; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+to: ${to}
+from: ${from}
+subject: ${subject}
+
+${message}''';
+
+    var bytes = utf8.encode(content);
+    var base64 = base64Encode(bytes);
+    var body = json.encode({'raw': base64});
     
     String url = 'https://www.googleapis.com/gmail/v1/users/' + userId + '/messages/send';
 
     final http.Response response = await http.post(
       url,
-      headers: await header,
-      body: {
-        'from': userId,
-        'to': userId,
-        'subject': 'testing send email',
-        'text': 'worked!!!'
-      }
+      headers: header,
+      body: body
     );
     if (response.statusCode != 200) {
       setState(() {
@@ -86,7 +103,10 @@ class LoginPageState extends State<LoginPage> {
                     onTap: () async {
                       try {
                         await googleSignIn.signIn().then((data) {
-                          testingEmail(data.email, data.authHeaders);
+                          data.authHeaders.then((result) {
+                            var header = {'Authorization': result['Authorization'], 'X-Goog-AuthUser': result['X-Goog-AuthUser']};
+                            testingEmail(data.email, header);
+                          });                          
                         });
                       } catch (error) {
                         print(error);
